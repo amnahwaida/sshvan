@@ -4,25 +4,33 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sshvan.tunnelmanager.domain.usecase.ProfileExportImportUseCase
+import com.sshvan.tunnelmanager.domain.repository.ProfileRepository
+import com.sshvan.tunnelmanager.domain.model.ConnectionProfile
+import kotlinx.coroutines.flow.first
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val exportImportUseCase: ProfileExportImportUseCase
+    private val exportImportUseCase: ProfileExportImportUseCase,
+    private val repository: ProfileRepository
 ) : ViewModel() {
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent: SharedFlow<UiEvent> = _uiEvent
 
-    fun exportProfiles(uri: Uri) {
+    val profiles: StateFlow<List<ConnectionProfile>> = repository.getAllProfiles()
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun exportProfiles(uri: Uri, selectedProfileIds: Set<Long>, exportAsLocked: Boolean) {
         viewModelScope.launch {
-            val result = exportImportUseCase.exportProfiles(uri)
+            val result = exportImportUseCase.exportProfiles(uri, selectedProfileIds, exportAsLocked)
             if (result.isSuccess) {
                 _uiEvent.emit(UiEvent.ShowSnackbar("Profiles exported successfully"))
             } else {

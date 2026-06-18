@@ -17,6 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Checkbox
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,6 +33,12 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    var showExportDialog by remember { mutableStateOf(false) }
+    var selectedProfiles by remember { mutableStateOf(setOf<Long>()) }
+    var exportAsLocked by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(true) {
         viewModel.uiEvent.collect { event ->
@@ -40,7 +53,10 @@ fun SettingsScreen(
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        uri?.let { viewModel.exportProfiles(it) }
+        uri?.let { 
+            viewModel.exportProfiles(it, selectedProfiles, exportAsLocked) 
+            showExportDialog = false
+        }
     }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -76,7 +92,10 @@ fun SettingsScreen(
                 title = "Export Profiles",
                 description = "Backup all profiles to a JSON file",
                 icon = { Icon(Icons.Default.Upload, contentDescription = null) },
-                onClick = { exportLauncher.launch("sshvan_profiles.json") }
+                onClick = { 
+                    selectedProfiles = profiles.map { it.id }.toSet()
+                    showExportDialog = true 
+                }
             )
             Divider()
             SettingItem(
@@ -104,6 +123,74 @@ fun SettingsScreen(
                 }
             )
             Divider()
+        }
+        
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                title = { Text("Export Profiles") },
+                text = {
+                    Column {
+                        Text("Select profiles to export:")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                            items(profiles) { profile ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (selectedProfiles.contains(profile.id)) {
+                                                selectedProfiles = selectedProfiles - profile.id
+                                            } else {
+                                                selectedProfiles = selectedProfiles + profile.id
+                                            }
+                                        }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = selectedProfiles.contains(profile.id),
+                                        onCheckedChange = null
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(profile.name)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { exportAsLocked = !exportAsLocked }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = exportAsLocked,
+                                onCheckedChange = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Export as Locked Profiles")
+                                Text("Others won't be able to edit or see the settings of these profiles.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { exportLauncher.launch("sshvan_profiles.json") },
+                        enabled = selectedProfiles.isNotEmpty()
+                    ) {
+                        Text("Export")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

@@ -17,9 +17,9 @@ class ProfileExportImportUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gson: Gson
 ) {
-    suspend fun exportProfiles(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun exportProfiles(uri: Uri, selectedIds: Set<Long>, exportAsLocked: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val profiles = repository.getAllProfiles().first()
+            val profiles = repository.getAllProfiles().first().filter { it.id in selectedIds }.map { if (exportAsLocked) it.copy(isLocked = true) else it }
             val json = gson.toJson(profiles)
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->

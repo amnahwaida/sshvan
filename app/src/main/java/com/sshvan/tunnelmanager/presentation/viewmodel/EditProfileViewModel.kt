@@ -7,6 +7,7 @@ import com.sshvan.tunnelmanager.domain.model.AuthType
 import com.sshvan.tunnelmanager.domain.model.ConnectionProfile
 import com.sshvan.tunnelmanager.domain.usecase.GetProfileByIdUseCase
 import com.sshvan.tunnelmanager.domain.usecase.SaveProfileUseCase
+import com.sshvan.tunnelmanager.domain.repository.ProfileRepository
 import com.sshvan.tunnelmanager.service.SshManager
 import com.sshvan.tunnelmanager.util.ValidationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,8 @@ class EditProfileViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val getProfileByIdUseCase: GetProfileByIdUseCase,
     private val saveProfileUseCase: SaveProfileUseCase,
-    private val sshManager: SshManager
+    private val sshManager: SshManager,
+    private val repository: ProfileRepository
 ) : ViewModel() {
 
     private val profileId: Long = savedStateHandle.get<Long>("profileId") ?: 0L
@@ -60,7 +62,8 @@ class EditProfileViewModel @Inject constructor(
                     privateKeyPath = profile.privateKeyPath,
                     localPort = profile.localPort.toString(),
                     remoteHost = profile.remoteHost,
-                    remotePort = profile.remotePort.toString()
+                    remotePort = profile.remotePort.toString(),
+                    isLocked = profile.isLocked
                 )
             }
         }
@@ -153,7 +156,8 @@ class EditProfileViewModel @Inject constructor(
                         currentState.privateKeyPath else null,
                     localPort = currentState.localPort.toIntOrNull() ?: 8080,
                     remoteHost = currentState.remoteHost.trim().ifBlank { "localhost" },
-                    remotePort = currentState.remotePort.toIntOrNull() ?: 3000
+                    remotePort = currentState.remotePort.toIntOrNull() ?: 3000,
+                    isLocked = currentState.isLocked
                 )
 
                 saveProfileUseCase(profile)
@@ -205,7 +209,8 @@ class EditProfileViewModel @Inject constructor(
                     currentState.privateKeyPath else null,
                 localPort = currentState.localPort.toIntOrNull() ?: 8080,
                 remoteHost = currentState.remoteHost.trim().ifBlank { "localhost" },
-                remotePort = currentState.remotePort.toIntOrNull() ?: 3000
+                remotePort = currentState.remotePort.toIntOrNull() ?: 3000,
+                    isLocked = currentState.isLocked
             )
 
             val result = sshManager.testConnection(profile)
@@ -220,6 +225,15 @@ class EditProfileViewModel @Inject constructor(
             }
         }
     }
+    fun deleteProfile() {
+        if (isEditMode) {
+            viewModelScope.launch {
+                repository.deleteProfile(profileId)
+                _uiEvent.emit(EditProfileEvent.SaveSuccess)
+            }
+        }
+    }
+
 }
 
 /**
@@ -236,6 +250,7 @@ data class ProfileFormState(
     val localPort: String = "8080",
     val remoteHost: String = "localhost",
     val remotePort: String = "3000",
+    val isLocked: Boolean = false,
     val errors: Map<String, String> = emptyMap(),
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,

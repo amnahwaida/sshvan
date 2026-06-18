@@ -16,7 +16,8 @@ data class ConnectionProfile(
     val remoteHost: String = "localhost",
     val remotePort: Int = 3000,
     val createdAt: Long = System.currentTimeMillis(),
-    val lastUsed: Long? = null
+    val lastUsed: Long? = null,
+    val isLocked: Boolean = false
 ) {
     /**
      * Returns the tunnel description string, e.g. "localhost:8080 → remoteHost:3000"

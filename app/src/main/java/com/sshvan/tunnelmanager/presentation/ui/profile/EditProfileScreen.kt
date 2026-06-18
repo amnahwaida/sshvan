@@ -20,6 +20,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -91,9 +97,36 @@ fun EditProfileScreen(
                     }
                 },
                 actions = {
+                    if (isEditMode) {
+                        var showDeleteDialog by remember { mutableStateOf(false) }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete Profile")
+                        }
+                        
+                        if (showDeleteDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showDeleteDialog = false },
+                                title = { Text("Delete Profile") },
+                                text = { Text("Are you sure you want to delete this profile?") },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showDeleteDialog = false
+                                        viewModel.deleteProfile()
+                                    }) {
+                                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showDeleteDialog = false }) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = viewModel::saveProfile,
-                        enabled = !formState.isSaving
+                        enabled = !formState.isSaving && !formState.isLocked
                     ) {
                         if (formState.isSaving) {
                             CircularProgressIndicator(
@@ -129,6 +162,7 @@ fun EditProfileScreen(
                 OutlinedTextField(
                     value = formState.name,
                     onValueChange = viewModel::updateName,
+                    readOnly = formState.isLocked,
                     label = { Text("Profile Name") },
                     placeholder = { Text("e.g. Office Server") },
                     modifier = Modifier.fillMaxWidth(),
@@ -142,8 +176,9 @@ fun EditProfileScreen(
             SectionCard(title = "SSH Server") {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedTextField(
-                        value = formState.sshHost,
+                        value = if (formState.isLocked) "********" else formState.sshHost,
                         onValueChange = viewModel::updateSshHost,
+                        readOnly = formState.isLocked,
                         label = { Text("Host / IP") },
                         modifier = Modifier.weight(2f),
                         isError = formState.errors.containsKey("sshHost"),
@@ -152,8 +187,9 @@ fun EditProfileScreen(
                     )
 
                     OutlinedTextField(
-                        value = formState.sshPort,
+                        value = if (formState.isLocked) "****" else formState.sshPort,
                         onValueChange = viewModel::updateSshPort,
+                        readOnly = formState.isLocked,
                         label = { Text("Port") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -166,8 +202,9 @@ fun EditProfileScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
-                    value = formState.username,
+                    value = if (formState.isLocked) "********" else formState.username,
                     onValueChange = viewModel::updateUsername,
+                    readOnly = formState.isLocked,
                     label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
                     isError = formState.errors.containsKey("username"),
@@ -183,14 +220,14 @@ fun EditProfileScreen(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = formState.authType == AuthType.PASSWORD,
-                        onClick = { viewModel.updateAuthType(AuthType.PASSWORD) },
+                        onClick = { if (!formState.isLocked) viewModel.updateAuthType(AuthType.PASSWORD) },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                     ) {
                         Text("Password")
                     }
                     SegmentedButton(
                         selected = formState.authType == AuthType.PRIVATE_KEY,
-                        onClick = { viewModel.updateAuthType(AuthType.PRIVATE_KEY) },
+                        onClick = { if (!formState.isLocked) viewModel.updateAuthType(AuthType.PRIVATE_KEY) },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                     ) {
                         Text("Private Key")
@@ -203,6 +240,7 @@ fun EditProfileScreen(
                     OutlinedTextField(
                         value = formState.password,
                         onValueChange = viewModel::updatePassword,
+                        readOnly = formState.isLocked,
                         label = { Text("Password") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
@@ -215,8 +253,9 @@ fun EditProfileScreen(
                     // Simple text field for path for now.
                     // In a real app, this should use a File Picker intent.
                     OutlinedTextField(
-                        value = formState.privateKeyPath ?: "",
+                        value = if (formState.isLocked) "********" else (formState.privateKeyPath ?: ""),
                         onValueChange = viewModel::updatePrivateKeyPath,
+                        readOnly = formState.isLocked,
                         label = { Text("Private Key File Path") },
                         placeholder = { Text("/storage/emulated/0/Download/id_rsa") },
                         modifier = Modifier.fillMaxWidth(),
@@ -235,8 +274,9 @@ fun EditProfileScreen(
             // Port Forwarding Section
             SectionCard(title = "Port Forwarding") {
                 OutlinedTextField(
-                    value = formState.localPort,
+                    value = if (formState.isLocked) "****" else formState.localPort,
                     onValueChange = viewModel::updateLocalPort,
+                    readOnly = formState.isLocked,
                     label = { Text("Local Port") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -249,8 +289,9 @@ fun EditProfileScreen(
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedTextField(
-                        value = formState.remoteHost,
+                        value = if (formState.isLocked) "********" else formState.remoteHost,
                         onValueChange = viewModel::updateRemoteHost,
+                        readOnly = formState.isLocked,
                         label = { Text("Remote Host") },
                         modifier = Modifier.weight(2f),
                         isError = formState.errors.containsKey("remoteHost"),
@@ -259,8 +300,9 @@ fun EditProfileScreen(
                     )
 
                     OutlinedTextField(
-                        value = formState.remotePort,
+                        value = if (formState.isLocked) "****" else formState.remotePort,
                         onValueChange = viewModel::updateRemotePort,
+                        readOnly = formState.isLocked,
                         label = { Text("Remote Port") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -314,12 +356,16 @@ fun EditProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Button(
-                    onClick = viewModel::saveProfile,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !formState.isSaving
-                ) {
-                    Text("SAVE PROFILE")
+                if (!formState.isLocked) {
+                    Button(
+                        onClick = viewModel::saveProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !formState.isSaving
+                    ) {
+                        Text("SAVE PROFILE")
+                    }
+                } else {
+                    Text("This profile is locked and cannot be modified.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
             }
         }
