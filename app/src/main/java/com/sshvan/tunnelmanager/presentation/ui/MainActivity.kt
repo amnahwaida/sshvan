@@ -1,25 +1,27 @@
 package com.sshvan.tunnelmanager.presentation.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.sshvan.tunnelmanager.presentation.ui.navigation.AppNavGraph
 import com.sshvan.tunnelmanager.presentation.ui.theme.SSHTunnelManagerTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -50,8 +52,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    AppNavGraph(navController = navController)
+                    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    val isAppLockEnabled = prefs.getBoolean("app_lock_enabled", false)
+
+                    var isAuthenticated by remember { mutableStateOf(!isAppLockEnabled) }
+
+                    if (isAuthenticated) {
+                        val navController = rememberNavController()
+                        AppNavGraph(navController = navController)
+                    } else {
+                        AppLockScreen(
+                            onAuthenticated = { isAuthenticated = true }
+                        )
+                    }
                 }
             }
         }

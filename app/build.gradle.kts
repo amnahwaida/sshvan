@@ -111,6 +111,12 @@ dependencies {
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // Biometric for App Lock
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+
+    // Gson for JSON parsing (Import/Export)
+    implementation("com.google.code.gson:gson:2.11.0")
+
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
