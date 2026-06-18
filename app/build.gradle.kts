@@ -5,6 +5,12 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 android {
     namespace = "com.sshvan.tunnelmanager"
     compileSdk = 35

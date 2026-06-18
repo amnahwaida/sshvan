@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
@@ -124,15 +125,15 @@ fun HomeScreen(
                     onCopyLocalClick = viewModel::copyLocalLink,
                     onCopyHotspotClick = viewModel::copyHotspotLink,
                     onSetupHotspotClick = {
-                        val intent = Intent(Settings.ACTION_TETHER_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        val intent = Intent("android.settings.TETHER_SETTINGS").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         try {
                             context.startActivity(intent)
                         } catch (e: Exception) {
                             // Fallback if specific intent not available
                             context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             })
                         }
                     },
