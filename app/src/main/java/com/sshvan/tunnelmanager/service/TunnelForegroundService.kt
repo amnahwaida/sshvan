@@ -72,7 +72,14 @@ class TunnelForegroundService : Service() {
         when (intent?.action) {
             ACTION_CONNECT -> {
                 // Start as foreground immediately to avoid ANR
-                startForeground(NOTIFICATION_ID, createNotification("Connecting...", null))
+                androidx.core.app.ServiceCompat.startForeground(
+                    this, 
+                    NOTIFICATION_ID, 
+                    createNotification("Connecting...", null),
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                    else 0
+                )
                 acquireWakeLock()
             }
             ACTION_DISCONNECT -> {
@@ -85,7 +92,14 @@ class TunnelForegroundService : Service() {
             }
             else -> {
                 // Service restarted by system, show idle notification
-                startForeground(NOTIFICATION_ID, createNotification("SSH Tunnel Service Ready", null))
+                androidx.core.app.ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    createNotification("SSH Tunnel Service Ready", null),
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                    else 0
+                )
             }
         }
         return START_STICKY

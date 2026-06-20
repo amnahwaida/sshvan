@@ -6,11 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
@@ -53,6 +53,54 @@ class MainActivity : FragmentActivity() {
                 ) {
                     val navController = rememberNavController()
                     AppNavGraph(navController = navController)
+                    
+                    var showCrashDialog by remember { mutableStateOf(false) }
+                    var crashLog by remember { mutableStateOf("") }
+                    
+                    LaunchedEffect(Unit) {
+                        val crashFile = java.io.File(filesDir, "crash.txt")
+                        if (crashFile.exists()) {
+                            crashLog = crashFile.readText()
+                            showCrashDialog = true
+                        }
+                    }
+                    
+                    if (showCrashDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { 
+                                showCrashDialog = false
+                                java.io.File(filesDir, "crash.txt").delete()
+                            },
+                            title = { Text("App Crashed Previously") },
+                            text = { 
+                                Column {
+                                    Text("Please copy this error and send it to the developer:")
+                                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = crashLog,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        modifier = Modifier.height(200.dp)
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = {
+                                    com.sshvan.tunnelmanager.util.NetworkUtils.copyToClipboard(this@MainActivity, "Crash Log", crashLog)
+                                }) {
+                                    Text("Copy Error")
+                                }
+                            },
+                            dismissButton = {
+                                OutlinedButton(onClick = {
+                                    showCrashDialog = false
+                                    java.io.File(filesDir, "crash.txt").delete()
+                                }) {
+                                    Text("Dismiss")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
