@@ -77,8 +77,14 @@ class SshManager @Inject constructor(
         }
 
         if (!isZtStarted) {
-            val ztPath = File(context.filesDir, "zerotier").apply { mkdirs() }.absolutePath
-            ztNode.initFromStorage(ztPath)
+            val ztDir = File(context.filesDir, "zerotier")
+            ztDir.mkdirs()
+            
+            // Delete stale PID/port files to prevent native crash on restart
+            File(ztDir, "zerotier-one.pid").delete()
+            File(ztDir, "zerotier-one.port").delete()
+
+            ztNode.initFromStorage(ztDir.absolutePath)
             ztNode.start()
             isZtStarted = true
             Log.d(TAG, "ZeroTier node started")
@@ -214,8 +220,8 @@ class SshManager @Inject constructor(
                 Result.success(Unit)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                val errorMessage = mapSshError(e)
+            } catch (e: Throwable) {
+                val errorMessage = mapSshError(Exception(e))
                 Log.e(TAG, "Connection failed: $errorMessage", e)
 
                 _tunnelState.value = TunnelState(
@@ -288,8 +294,8 @@ class SshManager @Inject constructor(
                 Result.success("Connection successful! Server: $serverVersion")
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                Result.failure(SshException(mapSshError(e)))
+            } catch (e: Throwable) {
+                Result.failure(SshException(mapSshError(Exception(e))))
             }
         }
     }
