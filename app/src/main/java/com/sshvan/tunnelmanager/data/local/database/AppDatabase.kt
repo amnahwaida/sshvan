@@ -6,7 +6,7 @@ import com.sshvan.tunnelmanager.data.local.dao.ConnectionProfileDao
 import com.sshvan.tunnelmanager.data.local.entity.ConnectionProfileEntity
 
 /**
- * Room database for SSH Tunnel Manager.
+ * Room database for Netvan.
  */
 @Database(
     entities = [ConnectionProfileEntity::class],

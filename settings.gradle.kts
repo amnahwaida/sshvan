@@ -25,5 +25,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SSHTunnelManager"
+rootProject.name = "Netvan"
 include(":app")

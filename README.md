@@ -1,4 +1,4 @@
-# 📱 SSH Tunnel Manager
+# 📱 Netvan
 
 > Aplikasi Android untuk membuat SSH Local Port Forwarding (tunnel) secara aman langsung dari perangkat mobile.
 
@@ -12,7 +12,7 @@
 
 ## 🌟 Tentang Aplikasi
 
-**SSH Tunnel Manager** adalah aplikasi Android yang memungkinkan pengguna membuat *SSH Local Port Forwarding* (tunnel) langsung dari perangkat Android. Aplikasi ini berfungsi sebagai jembatan untuk mengakses layanan internal (server development, database, IoT, aplikasi web) yang tidak dapat diakses langsung dari jaringan publik.
+**Netvan** adalah aplikasi Android yang memungkinkan pengguna membuat *SSH Local Port Forwarding* (tunnel) langsung dari perangkat Android. Aplikasi ini berfungsi sebagai jembatan untuk mengakses layanan internal (server development, database, IoT, aplikasi web) yang tidak dapat diakses langsung dari jaringan publik.
 
 Aplikasi ini dilengkapi dengan fitur integrasi **Hotspot** dan **Copy Link** untuk memudahkan pembagian akses ke perangkat lain (laptop/PC) yang terhubung ke Hotspot HP.
 
@@ -98,7 +98,7 @@ SplashScreen
 1. Download file **APK** dari [Releases](https://github.com/amnahwaida/sshvan/releases)
 2. Buka file APK di perangkat Android
 3. Izinkan instalasi dari sumber tidak dikenal jika diminta
-4. Buka aplikasi **SSH Tunnel Manager**
+4. Buka aplikasi **Netvan**
 
 ### Langkah Penggunaan
 1. **Buat Profil Baru** — Tap tombol `+` di HomeScreen

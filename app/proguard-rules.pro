@@ -1,4 +1,4 @@
-# SSH Tunnel Manager ProGuard Rules
+# Netvan ProGuard Rules
 
 # Keep JSch classes
 -keep class com.jcraft.jsch.** { *; }

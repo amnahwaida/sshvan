@@ -2,11 +2,11 @@ Berikut adalah file `prd.md` yang sudah saya susun secara detail dan terstruktur
 
 ```markdown
 # 📱 Product Requirements Document (PRD)
-## Aplikasi: SSH Tunnel Manager for Android
+## Aplikasi: Netvan for Android
 
 | Metadata | Detail |
 |----------|--------|
-| **Nama Proyek** | SSH Tunnel Manager |
+| **Nama Proyek** | Netvan |
 | **Versi Dokumen** | 1.0.0 |
 | **Tanggal** | 18 Juni 2026 |
 | **Platform** | Android (Minimum API 26 / Android 8.0) |
@@ -19,7 +19,7 @@ Berikut adalah file `prd.md` yang sudah saya susun secara detail dan terstruktur
 
 ## 1. 📋 Ringkasan Eksekutif
 
-**SSH Tunnel Manager** adalah aplikasi Android yang memungkinkan pengguna membuat *SSH Local Port Forwarding* (tunnel) secara aman langsung dari perangkat mobile mereka. Aplikasi ini berfungsi sebagai jembatan untuk mengakses layanan internal (server development, database, IoT, aplikasi web) yang tidak dapat diakses langsung dari jaringan publik.
+**Netvan** adalah aplikasi Android yang memungkinkan pengguna membuat *SSH Local Port Forwarding* (tunnel) secara aman langsung dari perangkat mobile mereka. Aplikasi ini berfungsi sebagai jembatan untuk mengakses layanan internal (server development, database, IoT, aplikasi web) yang tidak dapat diakses langsung dari jaringan publik.
 
 Aplikasi ini juga dilengkapi dengan fitur integrasi **Hotspot** dan **Copy Link** untuk memudahkan pembagian akses ke perangkat lain (laptop/PC) yang terhubung ke Hotspot HP.
 
