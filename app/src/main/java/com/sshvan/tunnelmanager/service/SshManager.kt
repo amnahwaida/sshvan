@@ -115,7 +115,9 @@ class SshManager @Inject constructor() {
 
                 // Setup port forwarding: -L localPort:remoteHost:remotePort
                 try {
+                    // Use "0.0.0.0" as bind_address so it can be accessed from LAN/Hotspot IP
                     newSession.setPortForwardingL(
+                        "0.0.0.0",
                         profile.localPort,
                         profile.remoteHost,
                         profile.remotePort
