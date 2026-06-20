@@ -24,13 +24,15 @@ data class ConnectionProfile(
      * Returns the tunnel description string, e.g. "localhost:8080 → remoteHost:3000"
      */
     fun tunnelDescription(): String =
-        "localhost:$localPort → $remoteHost:$remotePort"
+        if (isLocked) "localhost:•••• → ••••••••:••••"
+        else "localhost:$localPort → $remoteHost:$remotePort"
 
     /**
      * Returns the SSH connection description, e.g. "admin@192.168.1.50:22"
      */
     fun sshDescription(): String =
-        "$username@$sshHost:$sshPort"
+        if (isLocked) "••••••••"
+        else "$username@$sshHost:$sshPort"
 }
 
 enum class AuthType {

@@ -134,6 +134,7 @@ fun HomeScreen(
             if (tunnelState.isActive) {
                 QuickActionsRow(
                     localPort = tunnelState.activeProfile?.localPort,
+                    isLocked = tunnelState.activeProfile?.isLocked == true,
                     hotspotIp = hotspotIp,
                     onCopyLocalClick = viewModel::copyLocalLink,
                     onCopyHotspotClick = viewModel::copyHotspotLink,
@@ -265,6 +266,7 @@ fun HomeScreen(
 @Composable
 private fun QuickActionsRow(
     localPort: Int?,
+    isLocked: Boolean,
     hotspotIp: String?,
     onCopyLocalClick: () -> Unit,
     onCopyHotspotClick: () -> Unit,
@@ -315,7 +317,7 @@ private fun QuickActionsRow(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Localhost", style = MaterialTheme.typography.labelSmall)
                     Text(
-                        text = "127.0.0.1:${localPort ?: "8080"}",
+                        text = if (isLocked) "127.0.0.1:••••" else "127.0.0.1:${localPort ?: "8080"}",
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
@@ -337,7 +339,7 @@ private fun QuickActionsRow(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Hotspot / LAN", style = MaterialTheme.typography.labelSmall)
                         Text(
-                            text = "$hotspotIp:${localPort ?: "8080"}",
+                            text = if (isLocked) "$hotspotIp:••••" else "$hotspotIp:${localPort ?: "8080"}",
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1
                         )
