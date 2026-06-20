@@ -225,14 +225,6 @@ class EditProfileViewModel @Inject constructor(
             }
         }
     }
-    fun deleteProfile() {
-        if (isEditMode) {
-            viewModelScope.launch {
-                repository.deleteProfile(profileId)
-                _uiEvent.emit(EditProfileEvent.SaveSuccess)
-            }
-        }
-    }
 
 }
 

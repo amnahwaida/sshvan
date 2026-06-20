@@ -20,9 +20,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
@@ -97,33 +94,6 @@ fun EditProfileScreen(
                     }
                 },
                 actions = {
-                    if (isEditMode) {
-                        var showDeleteDialog by remember { mutableStateOf(false) }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete Profile")
-                        }
-                        
-                        if (showDeleteDialog) {
-                            AlertDialog(
-                                onDismissRequest = { showDeleteDialog = false },
-                                title = { Text("Delete Profile") },
-                                text = { Text("Are you sure you want to delete this profile?") },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        showDeleteDialog = false
-                                        viewModel.deleteProfile()
-                                    }) {
-                                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showDeleteDialog = false }) {
-                                        Text("Cancel")
-                                    }
-                                }
-                            )
-                        }
-                    }
                     IconButton(
                         onClick = viewModel::saveProfile,
                         enabled = !formState.isSaving && !formState.isLocked

@@ -49,6 +49,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.sshvan.tunnelmanager.domain.model.ConnectionProfile
 import com.sshvan.tunnelmanager.domain.model.TunnelStatus
 import com.sshvan.tunnelmanager.presentation.ui.components.ProfileCard
 import com.sshvan.tunnelmanager.presentation.ui.components.TunnelStatusCard
@@ -173,6 +184,29 @@ fun HomeScreen(
                     }
                 }
             } else {
+                var profileToDelete by remember { mutableStateOf<ConnectionProfile?>(null) }
+
+                if (profileToDelete != null) {
+                    AlertDialog(
+                        onDismissRequest = { profileToDelete = null },
+                        title = { Text("Delete Profile") },
+                        text = { Text("Are you sure you want to delete '${profileToDelete?.name}'?") },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                profileToDelete?.let { viewModel.deleteProfile(it) }
+                                profileToDelete = null
+                            }) {
+                                Text("Delete", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { profileToDelete = null }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -181,20 +215,57 @@ fun HomeScreen(
                         val isConnected = tunnelState.activeProfile?.id == profile.id && tunnelState.status == TunnelStatus.CONNECTED
                         val isConnecting = tunnelState.activeProfile?.id == profile.id && tunnelState.isConnecting
 
-                        ProfileCard(
-                            profile = profile,
-                            isConnected = isConnected,
-                            isConnecting = isConnecting,
-                            onConnectClick = { viewModel.connect(profile) },
-                            onDisconnectClick = viewModel::disconnect,
-                            onCardClick = {
-                                if (profile.isLocked) {
-                                    viewModel.showLockedMessage()
-                                } else {
-                                    onNavigateToEditProfile(profile.id)
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { dismissValue ->
+                                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                    profileToDelete = profile
                                 }
+                                false // Always return false so the item bounces back until confirmed
                             }
                         )
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = false,
+                            backgroundContent = {
+                                val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    Color.Transparent
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(color, shape = MaterialTheme.shapes.medium)
+                                        .padding(horizontal = 20.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            ProfileCard(
+                                profile = profile,
+                                isConnected = isConnected,
+                                isConnecting = isConnecting,
+                                onConnectClick = { viewModel.connect(profile) },
+                                onDisconnectClick = viewModel::disconnect,
+                                onCardClick = {
+                                    if (profile.isLocked) {
+                                        viewModel.showLockedMessage()
+                                    } else {
+                                        onNavigateToEditProfile(profile.id)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
