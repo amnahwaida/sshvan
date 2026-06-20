@@ -165,6 +165,15 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
+     * Show message when user tries to view a locked profile.
+     */
+    fun showLockedMessage() {
+        viewModelScope.launch {
+            _uiEvent.emit(UiEvent.ShowSnackbar("This profile is locked. Details cannot be viewed."))
+        }
+    }
+
+    /**
      * Refresh the hotspot IP address.
      */
     fun refreshHotspotIp() {

@@ -1,7 +1,6 @@
 package com.sshvan.tunnelmanager.presentation.ui
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -52,19 +51,8 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    val isAppLockEnabled = prefs.getBoolean("app_lock_enabled", false)
-
-                    var isAuthenticated by remember { mutableStateOf(!isAppLockEnabled) }
-
-                    if (isAuthenticated) {
-                        val navController = rememberNavController()
-                        AppNavGraph(navController = navController)
-                    } else {
-                        AppLockScreen(
-                            onAuthenticated = { isAuthenticated = true }
-                        )
-                    }
+                    val navController = rememberNavController()
+                    AppNavGraph(navController = navController)
                 }
             }
         }

@@ -187,7 +187,13 @@ fun HomeScreen(
                             isConnecting = isConnecting,
                             onConnectClick = { viewModel.connect(profile) },
                             onDisconnectClick = viewModel::disconnect,
-                            onCardClick = { onNavigateToEditProfile(profile.id) }
+                            onCardClick = {
+                                if (profile.isLocked) {
+                                    viewModel.showLockedMessage()
+                                } else {
+                                    onNavigateToEditProfile(profile.id)
+                                }
+                            }
                         )
                     }
                 }

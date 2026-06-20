@@ -1,20 +1,17 @@
 package com.sshvan.tunnelmanager.presentation.ui.settings
 
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,7 +28,6 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -103,24 +99,6 @@ fun SettingsScreen(
                 description = "Restore profiles from a JSON file",
                 icon = { Icon(Icons.Default.Download, contentDescription = null) },
                 onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
-            )
-            Divider()
-            
-            // App Lock Switch
-            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            var isAppLockEnabled by remember { 
-                mutableStateOf(prefs.getBoolean("app_lock_enabled", false)) 
-            }
-
-            SettingItemWithSwitch(
-                title = "App Lock",
-                description = "Require Biometric or PIN to open the app",
-                icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                checked = isAppLockEnabled,
-                onCheckedChange = { checked ->
-                    isAppLockEnabled = checked
-                    prefs.edit().putBoolean("app_lock_enabled", checked).apply()
-                }
             )
             Divider()
         }

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -76,13 +77,25 @@ fun ProfileCard(
 
             // Text section
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = profile.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = profile.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (profile.isLocked) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = "Locked Profile",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -95,7 +108,7 @@ fun ProfileCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${profile.username}@${profile.sshHost}:${profile.sshPort}",
+                        text = if (profile.isLocked) "••••••••" else "${profile.username}@${profile.sshHost}:${profile.sshPort}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1,
@@ -117,7 +130,7 @@ fun ProfileCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "L:${profile.localPort} → R:${profile.remotePort}",
+                        text = if (profile.isLocked) "L:•••• → R:••••" else "L:${profile.localPort} → R:${profile.remotePort}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
