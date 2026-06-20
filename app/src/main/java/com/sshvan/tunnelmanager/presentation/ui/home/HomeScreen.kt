@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
@@ -76,7 +78,6 @@ fun HomeScreen(
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val tunnelState by viewModel.tunnelState.collectAsStateWithLifecycle()
     val hotspotIp by viewModel.hotspotIp.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -132,22 +133,10 @@ fun HomeScreen(
             // Quick Actions (Only when connected)
             if (tunnelState.isActive) {
                 QuickActionsRow(
+                    localPort = tunnelState.activeProfile?.localPort,
                     hotspotIp = hotspotIp,
                     onCopyLocalClick = viewModel::copyLocalLink,
                     onCopyHotspotClick = viewModel::copyHotspotLink,
-                    onSetupHotspotClick = {
-                        val intent = Intent("android.settings.TETHER_SETTINGS").apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            // Fallback if specific intent not available
-                            context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            })
-                        }
-                    },
                     onRefreshIp = viewModel::refreshHotspotIp
                 )
             }
@@ -275,10 +264,10 @@ fun HomeScreen(
 
 @Composable
 private fun QuickActionsRow(
+    localPort: Int?,
     hotspotIp: String?,
     onCopyLocalClick: () -> Unit,
     onCopyHotspotClick: () -> Unit,
-    onSetupHotspotClick: () -> Unit,
     onRefreshIp: () -> Unit
 ) {
     Column(
@@ -286,18 +275,36 @@ private fun QuickActionsRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Text(
-            text = "QUICK ACTIONS",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "ACCESS LINKS",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = onRefreshIp,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = "Refresh IP",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Localhost Button
             Button(
                 onClick = onCopyLocalClick,
                 modifier = Modifier.weight(1f),
@@ -305,41 +312,61 @@ private fun QuickActionsRow(
             ) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Local Link", maxLines = 1)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Localhost", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = "127.0.0.1:${localPort ?: "8080"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
             }
 
-            Button(
-                onClick = onCopyHotspotClick,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                ),
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(hotspotIp ?: "Hotspot Link", maxLines = 1)
+            // Hotspot/LAN Button
+            if (hotspotIp != null) {
+                Button(
+                    onClick = onCopyHotspotClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Hotspot / LAN", style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            text = "$hotspotIp:${localPort ?: "8080"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onRefreshIp,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Hotspot Offline", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            text = "Tap to refresh",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedButton(
-            onClick = onSetupHotspotClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Filled.WifiTethering, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Setup Hotspot")
-        }
-
-        if (hotspotIp == null) {
-            Text(
-                text = "Hotspot not detected. Enable it first, then tap to refresh.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp)
-            )
         }
     }
 }

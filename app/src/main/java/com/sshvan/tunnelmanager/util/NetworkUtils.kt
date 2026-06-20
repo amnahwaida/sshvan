@@ -65,7 +65,7 @@ object NetworkUtils {
      * Generate a local link for accessing the tunneled service from this device.
      */
     fun generateLocalLink(localPort: Int): String =
-        "http://localhost:$localPort"
+        "http://127.0.0.1:$localPort"
 
     /**
      * Generate a hotspot link for accessing the tunneled service from another device
