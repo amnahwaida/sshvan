@@ -129,12 +129,9 @@ class TunnelForegroundService : Service() {
                 val notificationManager = getSystemService(NotificationManager::class.java)
                 notificationManager.notify(NOTIFICATION_ID, notification)
 
-                // Auto-stop service when disconnected (user-initiated)
-                if (state.status == TunnelStatus.DISCONNECTED) {
-                    releaseWakeLock()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-                }
+                // Note: We don't auto-stop the service here on DISCONNECTED.
+                // The service is explicitly stopped via ACTION_DISCONNECT intent.
+                // Stopping it here causes a race condition when reconnecting (StateFlow emits initial DISCONNECTED state).
             }
         }
     }
