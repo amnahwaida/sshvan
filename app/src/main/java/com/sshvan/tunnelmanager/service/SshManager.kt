@@ -78,11 +78,12 @@ class SshManager @Inject constructor(
             throw Exception("Invalid ZeroTier Network ID format")
         }
 
-        synchronized(ztLock) {
-            if (!isZtStarted) {
-                // Stop and clean up any previous node instance to prevent native state corruption
-                stopZeroTierNode()
+        // Leave any previously joined network before joining a new one
+        leaveZeroTierNetwork()
 
+        val node: ZeroTierNode
+        synchronized(ztLock) {
+            if (!isZtStarted || ztNode == null) {
                 val ztDir = File(context.filesDir, "zerotier")
                 ztDir.mkdirs()
 
@@ -90,16 +91,15 @@ class SshManager @Inject constructor(
                 File(ztDir, "zerotier-one.pid").delete()
                 File(ztDir, "zerotier-one.port").delete()
 
-                val node = ZeroTierNode()
-                node.initFromStorage(ztDir.absolutePath)
-                node.start()
-                ztNode = node
+                val newNode = ZeroTierNode()
+                newNode.initFromStorage(ztDir.absolutePath)
+                newNode.start()
+                ztNode = newNode
                 isZtStarted = true
                 Log.d(TAG, "ZeroTier node started, waiting for it to come online...")
             }
+            node = ztNode!!
         }
-
-        val node = ztNode ?: throw Exception("ZeroTier node failed to initialize")
 
         // Wait for the native node to fully come online before calling join()
         // This prevents SIGSEGV from accessing uninitialized native mutex in join()
@@ -110,8 +110,6 @@ class SshManager @Inject constructor(
         }
 
         if (!node.isOnline) {
-            // Node never came online - stop it to prevent stale state
-            stopZeroTierNode()
             throw Exception("Timeout waiting for ZeroTier node to come online")
         }
         Log.d(TAG, "ZeroTier node is online after ${onlineAttempts * 500}ms")
@@ -133,17 +131,22 @@ class SshManager @Inject constructor(
     }
 
     /**
-     * Safely stop and clean up the ZeroTier node.
-     * Must be called to prevent native memory corruption on subsequent start/join.
+     * Leave the currently joined ZeroTier network.
+     * NOTE: We intentionally NEVER call ztNode.stop() because libzt's
+     * zts_node_stop() tries to DetachCurrentThread on the calling JVM thread,
+     * which causes a fatal SIGABRT. The node stays alive as a singleton
+     * and is reused across connections for faster rejoining.
      */
-    private fun stopZeroTierNode() {
-        try {
-            ztNode?.stop()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error stopping ZeroTier node: ${e.message}")
+    private fun leaveZeroTierNetwork() {
+        activeZeroTierNetworkId?.let { networkId ->
+            try {
+                ztNode?.leave(networkId)
+                Log.d(TAG, "Left ZeroTier network: ${networkId.toString(16)}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Error leaving ZeroTier network: ${e.message}")
+            }
+            activeZeroTierNetworkId = null
         }
-        ztNode = null
-        isZtStarted = false
     }
 
     private class ZTSocketFactory : com.jcraft.jsch.SocketFactory {
@@ -335,15 +338,9 @@ class SshManager @Inject constructor(
 
                     Result.success("Connection successful! Server: $serverVersion")
                 } finally {
-                    // Clean up ZeroTier after test to prevent stale native state
+                    // Leave ZeroTier network after test but keep node alive
                     if (usedZeroTier) {
-                        activeZeroTierNetworkId?.let { networkId ->
-                            try { ztNode?.leave(networkId) } catch (_: Exception) {}
-                            activeZeroTierNetworkId = null
-                        }
-                        synchronized(ztLock) {
-                            stopZeroTierNode()
-                        }
+                        leaveZeroTierNetwork()
                     }
                 }
             } catch (e: CancellationException) {
@@ -391,21 +388,9 @@ class SshManager @Inject constructor(
         } finally {
             session = null
 
-            // Cleanup ZeroTier connection - fully stop the node to prevent
-            // SIGSEGV on subsequent join() calls with stale native state
-            activeZeroTierNetworkId?.let { networkId ->
-                try {
-                    ztNode?.leave(networkId)
-                    Log.d(TAG, "Left ZeroTier network: ${networkId.toString(16)}")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error leaving ZeroTier network: ${e.message}")
-                }
-                activeZeroTierNetworkId = null
-            }
-            // Fully stop and release native resources so next connect starts fresh
-            synchronized(ztLock) {
-                stopZeroTierNode()
-            }
+            // Leave ZeroTier network but keep the node alive for fast reconnection.
+            // We never call stop() — see leaveZeroTierNetwork() doc for why.
+            leaveZeroTierNetwork()
         }
     }
 
