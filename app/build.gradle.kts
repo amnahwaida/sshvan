@@ -102,6 +102,9 @@ dependencies {
     // SSH - JSch (mwiede fork)
     implementation("com.github.mwiede:jsch:0.2.18")
 
+    // ZeroTier libzt
+    implementation(files("libs/libzt.aar"))
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

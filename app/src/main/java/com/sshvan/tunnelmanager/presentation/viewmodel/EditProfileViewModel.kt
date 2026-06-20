@@ -63,7 +63,8 @@ class EditProfileViewModel @Inject constructor(
                     localPort = profile.localPort.toString(),
                     remoteHost = profile.remoteHost,
                     remotePort = profile.remotePort.toString(),
-                    isLocked = profile.isLocked
+                    isLocked = profile.isLocked,
+                    zeroTierNetworkId = profile.zeroTierNetworkId ?: ""
                 )
             }
         }
@@ -115,6 +116,10 @@ class EditProfileViewModel @Inject constructor(
         _formState.update { it.copy(remotePort = value, errors = it.errors - "remotePort") }
     }
 
+    fun updateZeroTierNetworkId(value: String) {
+        _formState.update { it.copy(zeroTierNetworkId = value) }
+    }
+
     /**
      * Save the profile to the database.
      */
@@ -157,7 +162,8 @@ class EditProfileViewModel @Inject constructor(
                     localPort = currentState.localPort.toIntOrNull() ?: 8080,
                     remoteHost = currentState.remoteHost.trim().ifBlank { "localhost" },
                     remotePort = currentState.remotePort.toIntOrNull() ?: 3000,
-                    isLocked = currentState.isLocked
+                    isLocked = currentState.isLocked,
+                    zeroTierNetworkId = currentState.zeroTierNetworkId.trim().takeIf { it.isNotBlank() }
                 )
 
                 saveProfileUseCase(profile)
@@ -210,7 +216,8 @@ class EditProfileViewModel @Inject constructor(
                 localPort = currentState.localPort.toIntOrNull() ?: 8080,
                 remoteHost = currentState.remoteHost.trim().ifBlank { "localhost" },
                 remotePort = currentState.remotePort.toIntOrNull() ?: 3000,
-                    isLocked = currentState.isLocked
+                isLocked = currentState.isLocked,
+                zeroTierNetworkId = currentState.zeroTierNetworkId.trim().takeIf { it.isNotBlank() }
             )
 
             val result = sshManager.testConnection(profile)
@@ -243,6 +250,7 @@ data class ProfileFormState(
     val remoteHost: String = "localhost",
     val remotePort: String = "3000",
     val isLocked: Boolean = false,
+    val zeroTierNetworkId: String = "",
     val errors: Map<String, String> = emptyMap(),
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,

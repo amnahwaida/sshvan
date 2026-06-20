@@ -10,7 +10,7 @@ import com.sshvan.tunnelmanager.data.local.entity.ConnectionProfileEntity
  */
 @Database(
     entities = [ConnectionProfileEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -19,7 +19,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.zerotier.sockets.ZeroTierNode
+import com.zerotier.sockets.ZeroTierSocket
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.net.Socket
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,8 +38,13 @@ import javax.inject.Singleton
  * - Auto-reconnect with exponential backoff
  * - Connection status monitoring
  */
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 @Singleton
-class SshManager @Inject constructor() {
+class SshManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     companion object {
         private const val TAG = "SshManager"
@@ -51,9 +61,52 @@ class SshManager @Inject constructor() {
     private var healthCheckJob: Job? = null
     private var reconnectJob: Job? = null
     private var reconnectAttempts = 0
+    private var activeZeroTierNetworkId: Long? = null
 
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
+
+    private val ztNode = ZeroTierNode()
+    private var isZtStarted = false
+
+    private suspend fun prepareZeroTier(networkIdStr: String) {
+        val networkId = try {
+            java.lang.Long.parseUnsignedLong(networkIdStr, 16)
+        } catch (e: Exception) {
+            throw Exception("Invalid ZeroTier Network ID format")
+        }
+
+        if (!isZtStarted) {
+            val ztPath = File(context.filesDir, "zerotier").apply { mkdirs() }.absolutePath
+            ztNode.initFromStorage(ztPath)
+            ztNode.start()
+            isZtStarted = true
+            Log.d(TAG, "ZeroTier node started")
+        }
+
+        Log.d(TAG, "Joining ZeroTier network: $networkIdStr")
+        ztNode.join(networkId)
+        activeZeroTierNetworkId = networkId
+
+        var attempts = 0
+        while (!ztNode.isNetworkTransportReady(networkId) && attempts < 20) {
+            delay(500)
+            attempts++
+        }
+
+        if (!ztNode.isNetworkTransportReady(networkId)) {
+            throw Exception("Timeout waiting for ZeroTier network transport. Is the node authorized?")
+        }
+        Log.d(TAG, "ZeroTier network ready: $networkIdStr")
+    }
+
+    private class ZTSocketFactory : com.jcraft.jsch.SocketFactory {
+        override fun createSocket(host: String, port: Int): Socket {
+            return ZeroTierSocketWrapper(host, port)
+        }
+        override fun getInputStream(socket: Socket): InputStream = socket.getInputStream()
+        override fun getOutputStream(socket: Socket): OutputStream = socket.getOutputStream()
+    }
 
     /**
      * Connect to the SSH server and establish port forwarding.
@@ -95,6 +148,16 @@ class SshManager @Inject constructor() {
                 // Set password if using password auth
                 if (profile.authType == AuthType.PASSWORD && profile.password != null) {
                     newSession.setPassword(profile.password)
+                }
+
+                // If ZeroTier Network ID is provided, join and route through ZT Socket
+                if (!profile.zeroTierNetworkId.isNullOrBlank()) {
+                    _tunnelState.value = _tunnelState.value.copy(
+                        status = TunnelStatus.CONNECTING,
+                        // We can add a custom message or just rely on CONNECTING status
+                    )
+                    prepareZeroTier(profile.zeroTierNetworkId)
+                    newSession.setSocketFactory(ZTSocketFactory())
                 }
 
                 // Configure session properties
@@ -204,6 +267,11 @@ class SshManager @Inject constructor() {
                     testSession.setPassword(profile.password)
                 }
 
+                if (!profile.zeroTierNetworkId.isNullOrBlank()) {
+                    prepareZeroTier(profile.zeroTierNetworkId)
+                    testSession.setSocketFactory(ZTSocketFactory())
+                }
+
                 val config = java.util.Properties()
                 config["StrictHostKeyChecking"] = "no"
                 config["PreferredAuthentications"] = when (profile.authType) {
@@ -262,6 +330,17 @@ class SshManager @Inject constructor() {
             Log.w(TAG, "Error during disconnect: ${e.message}")
         } finally {
             session = null
+
+            // Cleanup ZeroTier connection
+            activeZeroTierNetworkId?.let { networkId ->
+                try {
+                    ztNode.leave(networkId)
+                    Log.d(TAG, "Left ZeroTier network: ${networkId.toString(16)}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error leaving ZeroTier network: ${e.message}")
+                }
+                activeZeroTierNetworkId = null
+            }
         }
     }
 

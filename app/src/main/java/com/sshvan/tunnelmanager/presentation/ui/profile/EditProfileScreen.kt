@@ -241,6 +241,20 @@ fun EditProfileScreen(
                 }
             }
 
+            // ZeroTier Section
+            SectionCard(title = "ZeroTier (Optional)") {
+                OutlinedTextField(
+                    value = if (formState.isLocked) "********" else formState.zeroTierNetworkId,
+                    onValueChange = viewModel::updateZeroTierNetworkId,
+                    readOnly = formState.isLocked,
+                    label = { Text("Network ID") },
+                    placeholder = { Text("e.g. 1234567890abcdef") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("Leave blank for normal internet connection") }
+                )
+            }
+
             // Port Forwarding Section
             SectionCard(title = "Port Forwarding") {
                 OutlinedTextField(

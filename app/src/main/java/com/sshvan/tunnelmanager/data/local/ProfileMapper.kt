@@ -28,7 +28,8 @@ fun ConnectionProfileEntity.toDomain(): ConnectionProfile =
         remotePort = remotePort,
         createdAt = createdAt,
         lastUsed = lastUsed,
-        isLocked = isLocked
+        isLocked = isLocked,
+        zeroTierNetworkId = zeroTierNetworkId
     )
 
 fun ConnectionProfile.toEntity(): ConnectionProfileEntity =
@@ -46,5 +47,6 @@ fun ConnectionProfile.toEntity(): ConnectionProfileEntity =
         remotePort = remotePort,
         createdAt = createdAt,
         lastUsed = lastUsed,
-        isLocked = isLocked
+        isLocked = isLocked,
+        zeroTierNetworkId = zeroTierNetworkId
     )

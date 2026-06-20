@@ -22,5 +22,6 @@ data class ConnectionProfileEntity(
     val remotePort: Int = 3000,
     val createdAt: Long = System.currentTimeMillis(),
     val lastUsed: Long? = null,
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val zeroTierNetworkId: String? = null
 )
