@@ -66,8 +66,10 @@ class SshManager @Inject constructor(
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
 
-    private val ztNode = ZeroTierNode()
+    private var ztNode: ZeroTierNode? = null
+    @Volatile
     private var isZtStarted = false
+    private val ztLock = Any()
 
     private suspend fun prepareZeroTier(networkIdStr: String) {
         val networkId = try {
@@ -76,34 +78,72 @@ class SshManager @Inject constructor(
             throw Exception("Invalid ZeroTier Network ID format")
         }
 
-        if (!isZtStarted) {
-            val ztDir = File(context.filesDir, "zerotier")
-            ztDir.mkdirs()
-            
-            // Delete stale PID/port files to prevent native crash on restart
-            File(ztDir, "zerotier-one.pid").delete()
-            File(ztDir, "zerotier-one.port").delete()
+        synchronized(ztLock) {
+            if (!isZtStarted) {
+                // Stop and clean up any previous node instance to prevent native state corruption
+                stopZeroTierNode()
 
-            ztNode.initFromStorage(ztDir.absolutePath)
-            ztNode.start()
-            isZtStarted = true
-            Log.d(TAG, "ZeroTier node started")
+                val ztDir = File(context.filesDir, "zerotier")
+                ztDir.mkdirs()
+
+                // Delete stale PID/port files to prevent native crash on restart
+                File(ztDir, "zerotier-one.pid").delete()
+                File(ztDir, "zerotier-one.port").delete()
+
+                val node = ZeroTierNode()
+                node.initFromStorage(ztDir.absolutePath)
+                node.start()
+                ztNode = node
+                isZtStarted = true
+                Log.d(TAG, "ZeroTier node started, waiting for it to come online...")
+            }
         }
 
+        val node = ztNode ?: throw Exception("ZeroTier node failed to initialize")
+
+        // Wait for the native node to fully come online before calling join()
+        // This prevents SIGSEGV from accessing uninitialized native mutex in join()
+        var onlineAttempts = 0
+        while (!node.isOnline && onlineAttempts < 60) {
+            delay(500)
+            onlineAttempts++
+        }
+
+        if (!node.isOnline) {
+            // Node never came online - stop it to prevent stale state
+            stopZeroTierNode()
+            throw Exception("Timeout waiting for ZeroTier node to come online")
+        }
+        Log.d(TAG, "ZeroTier node is online after ${onlineAttempts * 500}ms")
+
         Log.d(TAG, "Joining ZeroTier network: $networkIdStr")
-        ztNode.join(networkId)
+        node.join(networkId)
         activeZeroTierNetworkId = networkId
 
         var attempts = 0
-        while (!ztNode.isNetworkTransportReady(networkId) && attempts < 20) {
+        while (!node.isNetworkTransportReady(networkId) && attempts < 30) {
             delay(500)
             attempts++
         }
 
-        if (!ztNode.isNetworkTransportReady(networkId)) {
+        if (!node.isNetworkTransportReady(networkId)) {
             throw Exception("Timeout waiting for ZeroTier network transport. Is the node authorized?")
         }
         Log.d(TAG, "ZeroTier network ready: $networkIdStr")
+    }
+
+    /**
+     * Safely stop and clean up the ZeroTier node.
+     * Must be called to prevent native memory corruption on subsequent start/join.
+     */
+    private fun stopZeroTierNode() {
+        try {
+            ztNode?.stop()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping ZeroTier node: ${e.message}")
+        }
+        ztNode = null
+        isZtStarted = false
     }
 
     private class ZTSocketFactory : com.jcraft.jsch.SocketFactory {
@@ -273,25 +313,39 @@ class SshManager @Inject constructor(
                     testSession.setPassword(profile.password)
                 }
 
-                if (!profile.zeroTierNetworkId.isNullOrBlank()) {
-                    prepareZeroTier(profile.zeroTierNetworkId)
-                    testSession.setSocketFactory(ZTSocketFactory())
+                val usedZeroTier = !profile.zeroTierNetworkId.isNullOrBlank()
+                try {
+                    if (usedZeroTier) {
+                        prepareZeroTier(profile.zeroTierNetworkId!!)
+                        testSession.setSocketFactory(ZTSocketFactory())
+                    }
+
+                    val config = java.util.Properties()
+                    config["StrictHostKeyChecking"] = "no"
+                    config["PreferredAuthentications"] = when (profile.authType) {
+                        AuthType.PASSWORD -> "password,keyboard-interactive"
+                        AuthType.PRIVATE_KEY -> "publickey"
+                    }
+                    testSession.setConfig(config)
+                    testSession.timeout = CONNECT_TIMEOUT_MS
+
+                    testSession.connect(CONNECT_TIMEOUT_MS)
+                    val serverVersion = testSession.serverVersion ?: "Unknown"
+                    testSession.disconnect()
+
+                    Result.success("Connection successful! Server: $serverVersion")
+                } finally {
+                    // Clean up ZeroTier after test to prevent stale native state
+                    if (usedZeroTier) {
+                        activeZeroTierNetworkId?.let { networkId ->
+                            try { ztNode?.leave(networkId) } catch (_: Exception) {}
+                            activeZeroTierNetworkId = null
+                        }
+                        synchronized(ztLock) {
+                            stopZeroTierNode()
+                        }
+                    }
                 }
-
-                val config = java.util.Properties()
-                config["StrictHostKeyChecking"] = "no"
-                config["PreferredAuthentications"] = when (profile.authType) {
-                    AuthType.PASSWORD -> "password,keyboard-interactive"
-                    AuthType.PRIVATE_KEY -> "publickey"
-                }
-                testSession.setConfig(config)
-                testSession.timeout = CONNECT_TIMEOUT_MS
-
-                testSession.connect(CONNECT_TIMEOUT_MS)
-                val serverVersion = testSession.serverVersion ?: "Unknown"
-                testSession.disconnect()
-
-                Result.success("Connection successful! Server: $serverVersion")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
@@ -337,15 +391,20 @@ class SshManager @Inject constructor(
         } finally {
             session = null
 
-            // Cleanup ZeroTier connection
+            // Cleanup ZeroTier connection - fully stop the node to prevent
+            // SIGSEGV on subsequent join() calls with stale native state
             activeZeroTierNetworkId?.let { networkId ->
                 try {
-                    ztNode.leave(networkId)
+                    ztNode?.leave(networkId)
                     Log.d(TAG, "Left ZeroTier network: ${networkId.toString(16)}")
                 } catch (e: Exception) {
                     Log.w(TAG, "Error leaving ZeroTier network: ${e.message}")
                 }
                 activeZeroTierNetworkId = null
+            }
+            // Fully stop and release native resources so next connect starts fresh
+            synchronized(ztLock) {
+                stopZeroTierNode()
             }
         }
     }
