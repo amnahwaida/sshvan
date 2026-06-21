@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -45,7 +46,7 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        androidx.activity.enableEdgeToEdge()
+        enableEdgeToEdge()
 
         setContent {
             SSHTunnelManagerTheme {
