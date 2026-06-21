@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,7 +58,12 @@ class SshManager @Inject constructor(
         private const val HEALTH_CHECK_INTERVAL_MS = 10_000L
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Use a dedicated cached thread pool for SSH and ZeroTier connections.
+    // ZeroTier's native socket connection can block uninterruptibly for up to 60s if the host is down.
+    // If a user cancels and reconnects repeatedly, this would exhaust the standard Dispatchers.IO pool.
+    // A cached thread pool can grow as needed and threads will die after being idle.
+    private val sshDispatcher = Executors.newCachedThreadPool().asCoroutineDispatcher()
+    private val scope = CoroutineScope(SupervisorJob() + sshDispatcher)
     private var session: Session? = null
     private var healthCheckJob: Job? = null
     private var reconnectJob: Job? = null
@@ -233,7 +240,7 @@ class SshManager @Inject constructor(
      * Connect to the SSH server and establish port forwarding.
      */
     suspend fun connect(profile: ConnectionProfile): Result<Unit> {
-        return withContext(Dispatchers.IO) {
+        return withContext(sshDispatcher) {
             activeConnectionJob?.cancel()
             activeConnectionJob = coroutineContext[Job]
             var newSession: Session? = null
@@ -397,7 +404,7 @@ class SshManager @Inject constructor(
      * Test connection without keeping it open.
      */
     suspend fun testConnection(profile: ConnectionProfile): Result<String> {
-        return withContext(Dispatchers.IO) {
+        return withContext(sshDispatcher) {
             try {
                 validateProfile(profile).getOrThrow()
 
