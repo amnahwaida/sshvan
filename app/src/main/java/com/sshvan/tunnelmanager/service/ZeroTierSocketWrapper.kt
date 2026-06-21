@@ -19,6 +19,12 @@ class ZeroTierSocketWrapper : Socket() {
     
     override fun close() {
         try {
+            ztSocket.inputStream?.close()
+        } catch (_: Exception) {}
+        try {
+            ztSocket.outputStream?.close()
+        } catch (_: Exception) {}
+        try {
             ztSocket.close()
         } catch (_: Exception) {}
     }
@@ -29,6 +35,14 @@ class ZeroTierSocketWrapper : Socket() {
     
     override fun connect(endpoint: SocketAddress?, timeout: Int) {
         ztSocket.connect(endpoint)
+    }
+
+    override fun setSoTimeout(timeout: Int) {
+        ztSocket.soTimeout = timeout
+    }
+
+    override fun getSoTimeout(): Int {
+        return ztSocket.soTimeout
     }
     
     override fun isConnected(): Boolean = true 

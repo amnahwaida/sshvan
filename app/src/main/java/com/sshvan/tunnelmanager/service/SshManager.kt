@@ -549,6 +549,9 @@ class SshManager @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Error during disconnect: ${e.message}")
         }
+        
+        // Leave the ZeroTier network to ensure a clean state for the next connection
+        leaveZeroTierNetwork()
     }
 
     /**
