@@ -34,9 +34,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -114,7 +116,16 @@ fun HomeScreen(
                 Icon(Icons.Filled.Add, contentDescription = "Add Profile")
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isSystemInDarkTheme()) Color(0xFF2C2C2C) else Color(0xFF313033),
+                    contentColor = Color.White,
+                    actionColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
