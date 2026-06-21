@@ -133,9 +133,6 @@ class SshManager @Inject constructor(
             throw Exception("Invalid ZeroTier Network ID format")
         }
 
-        // Leave any previously joined network before joining a new one
-        leaveZeroTierNetwork()
-
         val node: ZeroTierNode
         synchronized(ztLock) {
             if (!isZtStarted || ztNode == null) {
@@ -168,6 +165,24 @@ class SshManager @Inject constructor(
             throw Exception("Timeout waiting for ZeroTier node to come online")
         }
         Log.d(TAG, "ZeroTier node is online after ${onlineAttempts * 500}ms")
+
+        // Leave any previously joined network if it is different from the target network
+        val currentActive = activeZeroTierNetworkId
+        if (currentActive != null && currentActive != networkId) {
+            Log.d(TAG, "Leaving previous ZeroTier network: ${currentActive.toString(16)} to join: $networkIdStr")
+            try {
+                node.leave(currentActive)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error leaving ZeroTier network: ${e.message}")
+            }
+            activeZeroTierNetworkId = null
+        }
+
+        // If we are already joined to this network and transport is ready, skip join and wait
+        if (activeZeroTierNetworkId == networkId && node.isNetworkTransportReady(networkId)) {
+            Log.d(TAG, "ZeroTier network $networkIdStr is already joined and transport is ready.")
+            return
+        }
 
         Log.d(TAG, "Joining ZeroTier network: $networkIdStr")
         node.join(networkId)
@@ -262,6 +277,9 @@ class SshManager @Inject constructor(
                     )
                     prepareZeroTier(profile.zeroTierNetworkId)
                     newSession.setSocketFactory(ZTSocketFactory())
+                } else {
+                    // Leave ZeroTier network if the new profile does not use ZeroTier
+                    leaveZeroTierNetwork()
                 }
 
                 // Configure session properties
@@ -393,9 +411,17 @@ class SshManager @Inject constructor(
 
                     Result.success("Connection successful! Server: $serverVersion")
                 } finally {
-                    // Leave ZeroTier network after test but keep node alive
+                    // Leave ZeroTier network after test only if it's not the active tunnel's network
                     if (usedZeroTier) {
-                        leaveZeroTierNetwork()
+                        val activeProfile = _tunnelState.value.activeProfile
+                        val activeNetworkIdStr = activeProfile?.zeroTierNetworkId
+                        val isActiveTunnelConnected = _tunnelState.value.status == TunnelStatus.CONNECTED ||
+                                _tunnelState.value.status == TunnelStatus.CONNECTING ||
+                                _tunnelState.value.status == TunnelStatus.RECONNECTING
+                        
+                        if (!isActiveTunnelConnected || activeNetworkIdStr != profile.zeroTierNetworkId) {
+                            leaveZeroTierNetwork()
+                        }
                     }
                 }
             } catch (e: CancellationException) {
@@ -443,9 +469,9 @@ class SshManager @Inject constructor(
         } finally {
             session = null
 
-            // Leave ZeroTier network but keep the node alive for fast reconnection.
-            // We never call stop() — see leaveZeroTierNetwork() doc for why.
-            leaveZeroTierNetwork()
+            // We intentionally do NOT call leaveZeroTierNetwork() here so that
+            // reconnecting to the same profile/network is fast and stable.
+            // We only leave/rejoin networks when switching profiles or testing.
         }
     }
 
