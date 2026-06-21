@@ -101,9 +101,16 @@ class TunnelForegroundService : Service() {
                 serviceScope.launch {
                     val ip = com.sshvan.tunnelmanager.util.NetworkUtils.getHotspotIpAddress()
                     if (ip != null) {
+                        val activeProfile = sshManager.tunnelState.value.activeProfile
+                        val port = activeProfile?.localPort ?: 8080
+                        val fullAddress = "$ip:$port"
                         kotlinx.coroutines.withContext(Dispatchers.Main) {
-                            com.sshvan.tunnelmanager.util.NetworkUtils.copyToClipboard(this@TunnelForegroundService, "Hotspot IP", ip)
-                            android.widget.Toast.makeText(this@TunnelForegroundService, "Hotspot IP Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                            com.sshvan.tunnelmanager.util.NetworkUtils.copyToClipboard(this@TunnelForegroundService, "Hotspot IP", fullAddress)
+                            android.widget.Toast.makeText(this@TunnelForegroundService, "Copied: $fullAddress", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(this@TunnelForegroundService, "Hotspot not active!", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
