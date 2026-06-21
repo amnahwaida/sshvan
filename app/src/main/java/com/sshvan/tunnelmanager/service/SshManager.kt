@@ -332,6 +332,14 @@ class SshManager @Inject constructor(
                     AuthType.PASSWORD -> "password,keyboard-interactive"
                     AuthType.PRIVATE_KEY -> "publickey"
                 }
+                // Optimization: Prioritize fastest ciphers and MACs for VPN throughput and battery
+                config["cipher.s2c"] = "aes128-gcm@openssh.com,aes128-ctr,aes256-gcm@openssh.com,aes256-ctr"
+                config["cipher.c2s"] = "aes128-gcm@openssh.com,aes128-ctr,aes256-gcm@openssh.com,aes256-ctr"
+                config["mac.s2c"] = "hmac-sha2-256-etm@openssh.com,hmac-sha1,hmac-md5"
+                config["mac.c2s"] = "hmac-sha2-256-etm@openssh.com,hmac-sha1,hmac-md5"
+                config["compression.s2c"] = "none"
+                config["compression.c2s"] = "none"
+                
                 newSession.setConfig(config)
                 newSession.timeout = CONNECT_TIMEOUT_MS
 
