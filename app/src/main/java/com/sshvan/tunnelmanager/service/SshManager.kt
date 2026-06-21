@@ -506,19 +506,25 @@ class SshManager @Inject constructor(
         healthCheckJob = null
 
         val cSession = connectingSession
+        val cSocket = connectingZtSocket
+        
         connectingSession = null
-
-        try {
-            connectingZtSocket?.close()
-        } catch (_: Exception) {}
         connectingZtSocket = null
+
+        // Run closures in a separate background coroutine so we don't block
+        // the current thread. JSch connect() holds a synchronized lock that 
+        // disconnect() waits for, which causes deadlocks.
+        scope.launch(Dispatchers.IO) {
+            try {
+                cSocket?.close()
+            } catch (_: Exception) {}
+            try {
+                cSession?.disconnect()
+            } catch (_: Exception) {}
+        }
 
         val aSession = session
         session = null
-
-        try {
-            cSession?.disconnect()
-        } catch (_: Exception) {}
 
         try {
             aSession?.let { s ->
