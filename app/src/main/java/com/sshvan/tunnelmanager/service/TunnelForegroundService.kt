@@ -38,6 +38,7 @@ class TunnelForegroundService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_CONNECT = "com.sshvan.tunnelmanager.ACTION_CONNECT"
         const val ACTION_DISCONNECT = "com.sshvan.tunnelmanager.ACTION_DISCONNECT"
+        const val ACTION_COPY_IP = "com.sshvan.tunnelmanager.ACTION_COPY_IP"
         const val EXTRA_PROFILE_ID = "extra_profile_id"
 
         private const val WAKELOCK_TAG = "SSHTunnelManager::TunnelWakeLock"
@@ -52,6 +53,12 @@ class TunnelForegroundService : Service() {
         fun createDisconnectIntent(context: Context): Intent {
             return Intent(context, TunnelForegroundService::class.java).apply {
                 action = ACTION_DISCONNECT
+            }
+        }
+        
+        fun createCopyIpIntent(context: Context): Intent {
+            return Intent(context, TunnelForegroundService::class.java).apply {
+                action = ACTION_COPY_IP
             }
         }
     }
@@ -75,7 +82,7 @@ class TunnelForegroundService : Service() {
                 androidx.core.app.ServiceCompat.startForeground(
                     this, 
                     NOTIFICATION_ID, 
-                    createNotification("Connecting...", null),
+                    createNotification("Connecting...", null, TunnelStatus.CONNECTING),
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                     else 0
@@ -90,12 +97,23 @@ class TunnelForegroundService : Service() {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
+            ACTION_COPY_IP -> {
+                serviceScope.launch {
+                    val ip = com.sshvan.tunnelmanager.util.NetworkUtils.getHotspotIpAddress()
+                    if (ip != null) {
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            com.sshvan.tunnelmanager.util.NetworkUtils.copyToClipboard(this@TunnelForegroundService, "Hotspot IP", ip)
+                            android.widget.Toast.makeText(this@TunnelForegroundService, "Hotspot IP Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
             else -> {
                 // Service restarted by system, show idle notification
                 androidx.core.app.ServiceCompat.startForeground(
                     this,
                     NOTIFICATION_ID,
-                    createNotification("SSH Tunnel Service Ready", null),
+                    createNotification("SSH Tunnel Service Ready", null, TunnelStatus.DISCONNECTED),
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
                         android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                     else 0
@@ -139,7 +157,7 @@ class TunnelForegroundService : Service() {
                     }
                 }
 
-                val notification = createNotification(title, text)
+                val notification = createNotification(title, text, state.status)
                 val notificationManager = getSystemService(NotificationManager::class.java)
                 notificationManager.notify(NOTIFICATION_ID, notification)
 
@@ -169,7 +187,7 @@ class TunnelForegroundService : Service() {
     /**
      * Create or update the foreground notification.
      */
-    private fun createNotification(title: String, text: String?): Notification {
+    private fun createNotification(title: String, text: String?, status: TunnelStatus): Notification {
         // Intent to open the app when notification is tapped
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -179,28 +197,35 @@ class TunnelForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Disconnect action button
-        val disconnectIntent = createDisconnectIntent(this)
-        val disconnectPendingIntent = PendingIntent.getService(
-            this, 1, disconnectIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_tunnel)
             .setOngoing(true)
             .setContentIntent(openAppPendingIntent)
-            .addAction(
-                R.drawable.ic_disconnect,
-                "Disconnect",
-                disconnectPendingIntent
-            )
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+
+        if (status == TunnelStatus.CONNECTED || status == TunnelStatus.CONNECTING || status == TunnelStatus.RECONNECTING) {
+            val disconnectIntent = createDisconnectIntent(this)
+            val disconnectPendingIntent = PendingIntent.getService(
+                this, 1, disconnectIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(R.drawable.ic_disconnect, "Disconnect", disconnectPendingIntent)
+        }
+
+        if (status == TunnelStatus.CONNECTED) {
+            val copyIpIntent = createCopyIpIntent(this)
+            val copyIpPendingIntent = PendingIntent.getService(
+                this, 2, copyIpIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(android.R.drawable.ic_menu_share, "Copy Hotspot IP", copyIpPendingIntent)
+        }
+
+        return builder.build()
     }
 
     /**
