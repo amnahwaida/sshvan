@@ -301,6 +301,10 @@ class SshManager @Inject constructor(
                 newSession.setConfig(config)
                 newSession.timeout = CONNECT_TIMEOUT_MS
 
+                if (!isActive) {
+                    throw CancellationException("Cancelled before connection")
+                }
+
                 // Connect
                 newSession.connect(CONNECT_TIMEOUT_MS)
 
@@ -371,23 +375,21 @@ class SshManager @Inject constructor(
     /**
      * Disconnect the active SSH tunnel.
      */
-    suspend fun disconnect() {
-        withContext(Dispatchers.IO) {
-            reconnectJob?.cancel()
-            reconnectJob = null
-            activeConnectionJob?.cancel()
-            activeConnectionJob = null
-            
-            // Update state immediately so UI responds without hanging
-            _tunnelState.value = TunnelState(status = TunnelStatus.DISCONNECTED)
-            reconnectAttempts = 0
-            
-            // Run the actual disconnection in a background coroutine.
-            // This prevents the UI from hanging if JSch's disconnect() blocks.
-            scope.launch {
-                disconnectInternal()
-                Log.i(TAG, "Disconnected")
-            }
+    fun disconnect() {
+        reconnectJob?.cancel()
+        reconnectJob = null
+        activeConnectionJob?.cancel()
+        activeConnectionJob = null
+        
+        // Update state immediately so UI responds without hanging
+        _tunnelState.value = TunnelState(status = TunnelStatus.DISCONNECTED)
+        reconnectAttempts = 0
+        
+        // Run the actual disconnection in a background coroutine.
+        // This prevents the UI from hanging if JSch's disconnect() blocks.
+        scope.launch {
+            disconnectInternal()
+            Log.i(TAG, "Disconnected")
         }
     }
 
