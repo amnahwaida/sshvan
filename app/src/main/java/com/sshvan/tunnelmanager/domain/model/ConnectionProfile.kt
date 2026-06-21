@@ -1,8 +1,11 @@
 package com.sshvan.tunnelmanager.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Domain model representing an SSH tunnel connection profile.
  */
+@Immutable
 data class ConnectionProfile(
     val id: Long = 0,
     val name: String,

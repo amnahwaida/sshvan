@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +25,6 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
-import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,6 +81,7 @@ class SshManager @Inject constructor(
     @Volatile
     private var isZtStarted = false
     private val ztLock = Any()
+    private val ztSocketFactory by lazy { ZTSocketFactory() }
 
     init {
         scope.launch {
@@ -316,7 +315,7 @@ class SshManager @Inject constructor(
                         // We can add a custom message or just rely on CONNECTING status
                     )
                     prepareZeroTier(profile.zeroTierNetworkId)
-                    newSession.setSocketFactory(ZTSocketFactory())
+                    newSession.setSocketFactory(ztSocketFactory)
                 } else {
                     // Leave ZeroTier network if the new profile does not use ZeroTier
                     leaveZeroTierNetwork()
@@ -463,7 +462,7 @@ class SshManager @Inject constructor(
                 try {
                     if (usedZeroTier) {
                         prepareZeroTier(profile.zeroTierNetworkId!!)
-                        testSession.setSocketFactory(ZTSocketFactory())
+                        testSession.setSocketFactory(ztSocketFactory)
                     }
 
                     val config = java.util.Properties()

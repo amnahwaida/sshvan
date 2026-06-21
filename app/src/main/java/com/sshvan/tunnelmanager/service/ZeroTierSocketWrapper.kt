@@ -10,14 +10,22 @@ import com.zerotier.sockets.ZeroTierNative
 class ZeroTierSocketWrapper : Socket() {
     private val ztSocket = ZeroTierSocket(ZeroTierNative.ZTS_AF_INET, ZeroTierNative.ZTS_SOCK_STREAM, 0)
 
+    @Volatile
+    private var connected = false
+    @Volatile
+    private var closed = false
+
     fun ztConnect(host: String, port: Int) {
         ztSocket.connect(java.net.InetSocketAddress(host, port))
+        connected = true
     }
 
     override fun getInputStream(): InputStream = ztSocket.inputStream
     override fun getOutputStream(): OutputStream = ztSocket.outputStream
     
     override fun close() {
+        closed = true
+        connected = false
         try {
             ztSocket.inputStream?.close()
         } catch (_: Exception) {}
@@ -31,10 +39,12 @@ class ZeroTierSocketWrapper : Socket() {
     
     override fun connect(endpoint: SocketAddress?) {
         ztSocket.connect(endpoint)
+        connected = true
     }
     
     override fun connect(endpoint: SocketAddress?, timeout: Int) {
         ztSocket.connect(endpoint)
+        connected = true
     }
 
     override fun setSoTimeout(timeout: Int) {
@@ -45,6 +55,6 @@ class ZeroTierSocketWrapper : Socket() {
         return ztSocket.soTimeout
     }
     
-    override fun isConnected(): Boolean = true 
-    override fun isClosed(): Boolean = false
+    override fun isConnected(): Boolean = connected
+    override fun isClosed(): Boolean = closed
 }
