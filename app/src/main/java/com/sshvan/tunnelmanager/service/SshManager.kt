@@ -343,6 +343,10 @@ class SshManager @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
+                if (!isActive || activeConnectionJob != coroutineContext[Job]) {
+                    Log.d(TAG, "Connection failed but job was cancelled, ignoring error")
+                    throw CancellationException("Connection cancelled", e)
+                }
                 val errorMessage = mapSshError(Exception(e))
                 Log.e(TAG, "Connection failed: $errorMessage", e)
 
@@ -373,10 +377,17 @@ class SshManager @Inject constructor(
             reconnectJob = null
             activeConnectionJob?.cancel()
             activeConnectionJob = null
-            disconnectInternal()
-            reconnectAttempts = 0
+            
+            // Update state immediately so UI responds without hanging
             _tunnelState.value = TunnelState(status = TunnelStatus.DISCONNECTED)
-            Log.i(TAG, "Disconnected")
+            reconnectAttempts = 0
+            
+            // Run the actual disconnection in a background coroutine.
+            // This prevents the UI from hanging if JSch's disconnect() blocks.
+            scope.launch {
+                disconnectInternal()
+                Log.i(TAG, "Disconnected")
+            }
         }
     }
 
@@ -459,13 +470,18 @@ class SshManager @Inject constructor(
         healthCheckJob?.cancel()
         healthCheckJob = null
 
+        val cSession = connectingSession
+        connectingSession = null
+
+        val aSession = session
+        session = null
+
         try {
-            connectingSession?.disconnect()
-            connectingSession = null
+            cSession?.disconnect()
         } catch (_: Exception) {}
 
         try {
-            session?.let { s ->
+            aSession?.let { s ->
                 if (s.isConnected) {
                     // Remove port forwarding first
                     try {
@@ -486,12 +502,6 @@ class SshManager @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error during disconnect: ${e.message}")
-        } finally {
-            session = null
-
-            // We intentionally do NOT call leaveZeroTierNetwork() here so that
-            // reconnecting to the same profile/network is fast and stable.
-            // We only leave/rejoin networks when switching profiles or testing.
         }
     }
 
