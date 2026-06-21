@@ -45,6 +45,8 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+        androidx.activity.enableEdgeToEdge()
+
         setContent {
             SSHTunnelManagerTheme {
                 Surface(
