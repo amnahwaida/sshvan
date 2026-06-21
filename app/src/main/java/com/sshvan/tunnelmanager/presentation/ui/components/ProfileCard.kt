@@ -1,6 +1,7 @@
 package com.sshvan.tunnelmanager.presentation.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Computer
@@ -147,25 +149,33 @@ fun ProfileCard(
                         modifier = Modifier.size(32.dp)
                     )
                 }
-            } else {
-                if (isConnecting) {
-                    // Just show a non-interactive icon when this specific profile is connecting
-                    // In a real app we might show a CircularProgressIndicator here
-                    Icon(
-                        imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Connecting...",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(32.dp)
+            } else if (isConnecting) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(36.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.dp
                     )
-                } else {
-                    IconButton(onClick = onConnectClick) {
+                    IconButton(onClick = onDisconnectClick) {
                         Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = "Connect",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
+                            imageVector = Icons.Filled.Stop,
+                            contentDescription = "Cancel connection",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
+                }
+            } else {
+                IconButton(onClick = onConnectClick) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Connect",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
 

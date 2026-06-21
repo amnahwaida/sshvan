@@ -73,6 +73,13 @@ class HomeViewModel @Inject constructor(
      * Connect to a profile's SSH tunnel.
      */
     fun connect(profile: ConnectionProfile) {
+        val currentStatus = tunnelState.value.status
+        if (currentStatus == TunnelStatus.CONNECTING ||
+            currentStatus == TunnelStatus.RECONNECTING ||
+            currentStatus == TunnelStatus.CONNECTED
+        ) {
+            return
+        }
         viewModelScope.launch {
             // Start foreground service first
             val serviceIntent = TunnelForegroundService.createConnectIntent(
@@ -108,6 +115,10 @@ class HomeViewModel @Inject constructor(
      * Disconnect the active tunnel.
      */
     fun disconnect() {
+        val currentStatus = tunnelState.value.status
+        if (currentStatus == TunnelStatus.DISCONNECTED) {
+            return
+        }
         viewModelScope.launch {
             sshManager.disconnect()
 

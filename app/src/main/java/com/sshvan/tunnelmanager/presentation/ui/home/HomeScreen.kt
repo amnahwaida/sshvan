@@ -219,15 +219,22 @@ fun HomeScreen(
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { dismissValue ->
                                 if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                                    profileToDelete = profile
+                                    if (isConnected || isConnecting) {
+                                        false
+                                    } else {
+                                        profileToDelete = profile
+                                        false
+                                    }
+                                } else {
+                                    false
                                 }
-                                false // Always return false so the item bounces back until confirmed
                             }
                         )
 
                         SwipeToDismissBox(
                             state = dismissState,
                             enableDismissFromStartToEnd = false,
+                            enableDismissFromEndToStart = !(isConnected || isConnecting),
                             backgroundContent = {
                                 val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
                                     MaterialTheme.colorScheme.errorContainer

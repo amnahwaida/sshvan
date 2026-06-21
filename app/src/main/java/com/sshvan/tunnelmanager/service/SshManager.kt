@@ -62,6 +62,8 @@ class SshManager @Inject constructor(
     private var reconnectJob: Job? = null
     private var reconnectAttempts = 0
     private var activeZeroTierNetworkId: Long? = null
+    private var activeConnectionJob: Job? = null
+    private var connectingSession: Session? = null
 
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
@@ -232,6 +234,9 @@ class SshManager @Inject constructor(
      */
     suspend fun connect(profile: ConnectionProfile): Result<Unit> {
         return withContext(Dispatchers.IO) {
+            activeConnectionJob?.cancel()
+            activeConnectionJob = coroutineContext[Job]
+            var newSession: Session? = null
             try {
                 // Disconnect any existing session first
                 disconnectInternal()
@@ -258,11 +263,12 @@ class SshManager @Inject constructor(
                     jsch.addIdentity(profile.privateKeyPath)
                 }
 
-                val newSession = jsch.getSession(
+                newSession = jsch.getSession(
                     profile.username,
                     profile.sshHost,
                     profile.sshPort
                 )
+                connectingSession = newSession
 
                 // Set password if using password auth
                 if (profile.authType == AuthType.PASSWORD && profile.password != null) {
@@ -347,6 +353,13 @@ class SshManager @Inject constructor(
                 )
 
                 Result.failure(SshException(errorMessage))
+            } finally {
+                if (connectingSession == newSession) {
+                    connectingSession = null
+                }
+                if (activeConnectionJob == coroutineContext[Job]) {
+                    activeConnectionJob = null
+                }
             }
         }
     }
@@ -358,6 +371,8 @@ class SshManager @Inject constructor(
         withContext(Dispatchers.IO) {
             reconnectJob?.cancel()
             reconnectJob = null
+            activeConnectionJob?.cancel()
+            activeConnectionJob = null
             disconnectInternal()
             reconnectAttempts = 0
             _tunnelState.value = TunnelState(status = TunnelStatus.DISCONNECTED)
@@ -443,6 +458,11 @@ class SshManager @Inject constructor(
     private fun disconnectInternal() {
         healthCheckJob?.cancel()
         healthCheckJob = null
+
+        try {
+            connectingSession?.disconnect()
+            connectingSession = null
+        } catch (_: Exception) {}
 
         try {
             session?.let { s ->
