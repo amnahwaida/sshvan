@@ -41,6 +41,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
@@ -265,6 +266,39 @@ fun EditProfileScreen(
                     singleLine = true,
                     supportingText = { Text("Leave blank for normal internet connection") }
                 )
+
+                val ztNodeId = formState.ztNodeId
+                if (!ztNodeId.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "ZeroTier Node ID",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = ztNodeId,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(ztNodeId))
+                                android.widget.Toast.makeText(context, "Copied ZeroTier Node ID: $ztNodeId", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Text("Copy")
+                        }
+                    }
+                }
             }
 
             // Port Forwarding Section

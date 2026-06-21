@@ -43,8 +43,16 @@ class EditProfileViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
+        loadZeroTierNodeId()
         if (isEditMode) {
             loadProfile()
+        }
+    }
+
+    private fun loadZeroTierNodeId() {
+        viewModelScope.launch {
+            val nodeId = sshManager.getZeroTierNodeId()
+            _formState.update { it.copy(ztNodeId = nodeId) }
         }
     }
 
@@ -64,7 +72,8 @@ class EditProfileViewModel @Inject constructor(
                     remoteHost = profile.remoteHost,
                     remotePort = profile.remotePort.toString(),
                     isLocked = profile.isLocked,
-                    zeroTierNetworkId = profile.zeroTierNetworkId ?: ""
+                    zeroTierNetworkId = profile.zeroTierNetworkId ?: "",
+                    ztNodeId = _formState.value.ztNodeId
                 )
             }
         }
@@ -251,6 +260,7 @@ data class ProfileFormState(
     val remotePort: String = "3000",
     val isLocked: Boolean = false,
     val zeroTierNetworkId: String = "",
+    val ztNodeId: String? = null,
     val errors: Map<String, String> = emptyMap(),
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,

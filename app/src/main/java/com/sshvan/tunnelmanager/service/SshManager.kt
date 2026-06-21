@@ -71,6 +71,61 @@ class SshManager @Inject constructor(
     private var isZtStarted = false
     private val ztLock = Any()
 
+    init {
+        scope.launch {
+            try {
+                synchronized(ztLock) {
+                    if (!isZtStarted) {
+                        val ztDir = File(context.filesDir, "zerotier")
+                        ztDir.mkdirs()
+                        File(ztDir, "zerotier-one.pid").delete()
+                        File(ztDir, "zerotier-one.port").delete()
+
+                        val newNode = ZeroTierNode()
+                        newNode.initFromStorage(ztDir.absolutePath)
+                        newNode.start()
+                        ztNode = newNode
+                        isZtStarted = true
+                        Log.d(TAG, "ZeroTier pre-initialized on startup, node ID: ${String.format("%010x", newNode.id)}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to pre-initialize ZeroTier: ${e.message}")
+            }
+        }
+    }
+
+    fun getZeroTierNodeId(): String? {
+        synchronized(ztLock) {
+            val node = ztNode
+            if (node != null && isZtStarted) {
+                try {
+                    val id = node.id
+                    if (id != 0L) {
+                        return String.format("%010x", id)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error getting ZT Node ID from running node: ${e.message}")
+                }
+            }
+        }
+        // Fallback: read from storage
+        try {
+            val ztDir = File(context.filesDir, "zerotier")
+            val identityFile = File(ztDir, "identity.public")
+            if (identityFile.exists()) {
+                val content = identityFile.readText().trim()
+                val parts = content.split(":")
+                if (parts.isNotEmpty() && parts[0].length == 10) {
+                    return parts[0]
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read identity.public: ${e.message}")
+        }
+        return null
+    }
+
     private suspend fun prepareZeroTier(networkIdStr: String) {
         val networkId = try {
             java.lang.Long.parseUnsignedLong(networkIdStr, 16)
@@ -516,6 +571,9 @@ class SshManager @Inject constructor(
             message.contains("auth failed", ignoreCase = true) ||
             message.contains("Authentication failed", ignoreCase = true) ->
                 "Authentication failed. Please check your username and password/key."
+
+            message.contains("Error while connecting to remote host (-1)", ignoreCase = true) ->
+                "ZeroTier connection error: Unable to reach the remote SSH host. Please verify that the host is online, has joined the same network, and that both this device and the host are authorized in your ZeroTier console."
 
             message.contains("Connection refused", ignoreCase = true) ->
                 "Connection refused. Please check the SSH host and port."
