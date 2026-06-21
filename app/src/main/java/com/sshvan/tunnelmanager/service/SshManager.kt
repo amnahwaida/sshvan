@@ -70,7 +70,11 @@ class SshManager @Inject constructor(
     private var reconnectAttempts = 0
     private var activeZeroTierNetworkId: Long? = null
     private var activeConnectionJob: Job? = null
+    
+    @Volatile
     private var connectingSession: Session? = null
+    @Volatile
+    private var connectingZtSocket: Socket? = null
 
     private val _tunnelState = MutableStateFlow(TunnelState())
     val tunnelState: StateFlow<TunnelState> = _tunnelState.asStateFlow()
@@ -228,9 +232,31 @@ class SshManager @Inject constructor(
         }
     }
 
-    private class ZTSocketFactory : com.jcraft.jsch.SocketFactory {
+    private inner class ZTSocketFactory : com.jcraft.jsch.SocketFactory {
         override fun createSocket(host: String, port: Int): Socket {
-            return ZeroTierSocketWrapper(host, port)
+            val wrapper = ZeroTierSocketWrapper()
+            connectingZtSocket = wrapper
+            
+            val executor = Executors.newSingleThreadExecutor()
+            val future = executor.submit {
+                wrapper.ztConnect(host, port)
+            }
+            try {
+                future.get(CONNECT_TIMEOUT_MS.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (e: java.util.concurrent.TimeoutException) {
+                wrapper.close()
+                future.cancel(true)
+                throw java.io.IOException("ZeroTier connect timed out after $CONNECT_TIMEOUT_MS ms")
+            } catch (e: Exception) {
+                wrapper.close()
+                throw java.io.IOException("ZeroTier connect failed: ${e.message}", e)
+            } finally {
+                if (connectingZtSocket == wrapper) {
+                    connectingZtSocket = null
+                }
+                executor.shutdown()
+            }
+            return wrapper
         }
         override fun getInputStream(socket: Socket): InputStream = socket.getInputStream()
         override fun getOutputStream(socket: Socket): OutputStream = socket.getOutputStream()
@@ -481,6 +507,11 @@ class SshManager @Inject constructor(
 
         val cSession = connectingSession
         connectingSession = null
+
+        try {
+            connectingZtSocket?.close()
+        } catch (_: Exception) {}
+        connectingZtSocket = null
 
         val aSession = session
         session = null

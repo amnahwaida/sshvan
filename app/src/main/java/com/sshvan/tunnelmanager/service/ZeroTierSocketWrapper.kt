@@ -5,24 +5,32 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
 import java.net.SocketAddress
+import com.zerotier.sockets.ZeroTierNative
 
-class ZeroTierSocketWrapper(host: String, port: Int) : Socket() {
-    private val ztSocket = ZeroTierSocket(host, port)
+class ZeroTierSocketWrapper : Socket() {
+    private val ztSocket = ZeroTierSocket(ZeroTierNative.ZTS_AF_INET, ZeroTierNative.ZTS_SOCK_STREAM, 0)
+
+    fun ztConnect(host: String, port: Int) {
+        ztSocket.connect(java.net.InetSocketAddress(host, port))
+    }
 
     override fun getInputStream(): InputStream = ztSocket.inputStream
     override fun getOutputStream(): OutputStream = ztSocket.outputStream
-    override fun close() = ztSocket.close()
     
-    // Override other methods to prevent standard Socket implementations
-    // that rely on native file descriptors.
+    override fun close() {
+        try {
+            ztSocket.close()
+        } catch (_: Exception) {}
+    }
+    
     override fun connect(endpoint: SocketAddress?) {
-        // ZeroTierSocket already connects in constructor
+        ztSocket.connect(endpoint)
     }
     
     override fun connect(endpoint: SocketAddress?, timeout: Int) {
-        // ZeroTierSocket already connects in constructor
+        ztSocket.connect(endpoint)
     }
     
-    override fun isConnected(): Boolean = true // Or query ztSocket if it has such method
+    override fun isConnected(): Boolean = true 
     override fun isClosed(): Boolean = false
 }
