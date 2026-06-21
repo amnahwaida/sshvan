@@ -206,6 +206,24 @@ class TunnelForegroundService : Service() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true) // Prevent vibrating on every status update
+
+        // Set color based on status
+        val colorResId = when (status) {
+            TunnelStatus.CONNECTED -> android.graphics.Color.parseColor("#4CAF50") // Green
+            TunnelStatus.CONNECTING, TunnelStatus.RECONNECTING -> android.graphics.Color.parseColor("#FF9800") // Orange
+            TunnelStatus.ERROR -> android.graphics.Color.parseColor("#F44336") // Red
+            else -> android.graphics.Color.parseColor("#757575") // Grey
+        }
+        builder.color = colorResId
+
+        // Add Chronometer when connected
+        if (status == TunnelStatus.CONNECTED) {
+            builder.setUsesChronometer(true)
+            builder.setWhen(System.currentTimeMillis())
+        } else {
+            builder.setUsesChronometer(false)
+        }
 
         if (status == TunnelStatus.CONNECTED || status == TunnelStatus.CONNECTING || status == TunnelStatus.RECONNECTING) {
             val disconnectIntent = createDisconnectIntent(this)
@@ -222,7 +240,7 @@ class TunnelForegroundService : Service() {
                 this, 2, copyIpIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            builder.addAction(android.R.drawable.ic_menu_share, "Copy Hotspot IP", copyIpPendingIntent)
+            builder.addAction(android.R.drawable.ic_menu_share, "Copy IP", copyIpPendingIntent)
         }
 
         return builder.build()
