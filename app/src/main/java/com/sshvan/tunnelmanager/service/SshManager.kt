@@ -62,7 +62,7 @@ class SshManager @Inject constructor(
     // ZeroTier's native socket connection can block uninterruptibly for up to 60s if the host is down.
     // If a user cancels and reconnects repeatedly, this would exhaust the standard Dispatchers.IO pool.
     // A cached thread pool can grow as needed and threads will die after being idle.
-    private val sshDispatcher = Executors.newCachedThreadPool().asCoroutineDispatcher()
+    private val sshDispatcher = Dispatchers.IO
     private val scope = CoroutineScope(SupervisorJob() + sshDispatcher)
     private var session: Session? = null
     private var healthCheckJob: Job? = null
@@ -237,15 +237,17 @@ class SshManager @Inject constructor(
             val wrapper = ZeroTierSocketWrapper()
             connectingZtSocket = wrapper
             
-            val executor = Executors.newSingleThreadExecutor()
-            val future = executor.submit {
-                wrapper.ztConnect(host, port)
-            }
+            // Optimize thread usage by using coroutines runBlocking instead of raw Executors
             try {
-                future.get(CONNECT_TIMEOUT_MS.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
-            } catch (e: java.util.concurrent.TimeoutException) {
+                kotlinx.coroutines.runBlocking {
+                    kotlinx.coroutines.withTimeout(CONNECT_TIMEOUT_MS.toLong()) {
+                        kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
+                            wrapper.ztConnect(host, port)
+                        }
+                    }
+                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 wrapper.close()
-                future.cancel(true)
                 throw java.io.IOException("ZeroTier connect timed out after $CONNECT_TIMEOUT_MS ms")
             } catch (e: Exception) {
                 wrapper.close()
@@ -254,7 +256,6 @@ class SshManager @Inject constructor(
                 if (connectingZtSocket == wrapper) {
                     connectingZtSocket = null
                 }
-                executor.shutdown()
             }
             return wrapper
         }
