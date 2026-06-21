@@ -1,5 +1,10 @@
 package com.sshvan.tunnelmanager.presentation.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,7 +50,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -79,6 +86,7 @@ fun HomeScreen(
     val tunnelState by viewModel.tunnelState.collectAsStateWithLifecycle()
     val hotspotIp by viewModel.hotspotIp.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { event ->
@@ -140,13 +148,23 @@ fun HomeScreen(
             }
 
             // Quick Actions (Only when connected)
-            if (tunnelState.isActive) {
+            AnimatedVisibility(
+                visible = tunnelState.isActive,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 QuickActionsRow(
                     localPort = tunnelState.activeProfile?.localPort,
                     isLocked = tunnelState.activeProfile?.isLocked == true,
                     hotspotIp = hotspotIp,
-                    onCopyLocalClick = viewModel::copyLocalLink,
-                    onCopyHotspotClick = viewModel::copyHotspotLink,
+                    onCopyLocalClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.copyLocalLink()
+                    },
+                    onCopyHotspotClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.copyHotspotLink()
+                    },
                     onRefreshIp = viewModel::refreshHotspotIp
                 )
             }
@@ -261,8 +279,14 @@ fun HomeScreen(
                                 profile = profile,
                                 isConnected = isConnected,
                                 isConnecting = isConnecting,
-                                onConnectClick = { viewModel.connect(profile) },
-                                onDisconnectClick = viewModel::disconnect,
+                                onConnectClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.connect(profile)
+                                },
+                                onDisconnectClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.disconnect()
+                                },
                                 onCardClick = {
                                     if (profile.isLocked) {
                                         viewModel.showLockedMessage()
